@@ -31,8 +31,8 @@ public class EJBMonitor {
 			System.err.println("Usage: java ejb-monitor <configuration-file>");
 			System.exit(-1);
 		}
-				
-		Properties configuration = new Properties(); 
+
+		Properties configuration = new Properties();
 		try {
 			configuration.load(new FileInputStream(args[0]));
 		} catch (FileNotFoundException e) {
@@ -52,36 +52,36 @@ public class EJBMonitor {
 		String realm = configuration.getProperty("realm", "");
 		String regexpHostname = configuration.getProperty("regexpHostname", ".*");
 		String regexpServer = configuration.getProperty("regexpServer", ".*");
-		String appsProperty= configuration.getProperty("apps", "");		
-		List<String> apps = Arrays.asList(appsProperty.split(","));
-				
+		String appsProperty = configuration.getProperty("apps", "");
+		List<String> apps = Arrays.asList(appsProperty.split(", *"));
+
 		Pattern patternHostname = Pattern.compile(regexpHostname);
 		Pattern patternServer = Pattern.compile(regexpServer);
 
 		System.out.println("date,host,server,deploy,subdeploy,ejb,method,invocations,execution-time,wait-time");
-		
+
 		ModelControllerClient client = null;
 		try {
 			client = connect(hostname, port, username, password, realm);
-			
-	        Set<String> hosts = getHosts(client);
-	        
-	        for (String host : hosts) {
-	        	if (patternHostname.matcher(host).matches()) {
-	        		Set<String> servers = getServers(client, host);
-	        		for (String server : servers) {
-	        			if (patternServer.matcher(server).matches()) {
-	        				Set<String> deployments = getDeployments(client, host, server);
-	        				for (String deployment : deployments) {
-	        					if (apps.contains(deployment.substring(0, deployment.lastIndexOf('-')))) {
-	                				ModelNode statistics = getAllStatistics(client, host, server, deployment);
-	                				printStatistics(statistics, host, server, deployment);
-	        					}
-	        				}
-	        			}
-	        		}
-	        	}
-	        }
+
+			Set<String> hosts = getHosts(client);
+
+			for (String host : hosts) {
+				if (patternHostname.matcher(host).matches()) {
+					Set<String> servers = getServers(client, host);
+					for (String server : servers) {
+						if (patternServer.matcher(server).matches()) {
+							Set<String> deployments = getDeployments(client, host, server);
+							for (String deployment : deployments) {
+								if (apps.contains(deployment.substring(0, deployment.lastIndexOf('-')))) {
+									ModelNode statistics = getAllStatistics(client, host, server, deployment);
+									printStatistics(statistics, host, server, deployment);
+								}
+							}
+						}
+					}
+				}
+			}
 		} catch (UnknownHostException e) {
 			System.err.println("Error: unknown hostname " + e.getMessage());
 			e.printStackTrace(System.err);
@@ -94,14 +94,15 @@ public class EJBMonitor {
 					disconnect(client);
 				} catch (IOException e) {
 					System.err.println("Error: i/o error " + e.getMessage());
-					e.printStackTrace(System.err);					
+					e.printStackTrace(System.err);
 				}
 			}
 		}
 	}
 
-	private static ModelControllerClient connect(final String host, final int port, final String username, final String password, final String securityRealmName) throws UnknownHostException {
-		final CallbackHandler callbackHandler = new CallbackHandler() {	
+	private static ModelControllerClient connect(final String host, final int port, final String username,
+			final String password, final String securityRealmName) throws UnknownHostException {
+		final CallbackHandler callbackHandler = new CallbackHandler() {
 			public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
 				for (Callback current : callbacks) {
 					if (current instanceof NameCallback) {
@@ -122,49 +123,48 @@ public class EJBMonitor {
 
 		return ModelControllerClient.Factory.create(host, port, callbackHandler);
 	}
-	
-		
-	private static void disconnect(ModelControllerClient client) throws IOException  {
+
+	private static void disconnect(ModelControllerClient client) throws IOException {
 		client.close();
 	}
 
 	private static Set<String> getHosts(ModelControllerClient client) throws IOException {
 		ModelNode op = new ModelNode();
-        op.get("operation").set("read-resource");
-        op.get("operations").set(true);
-        ModelNode response = client.execute(op);
+		op.get("operation").set("read-resource");
+		op.get("operations").set(true);
+		ModelNode response = client.execute(op);
 
-        return response.get("result").get("host").keys();
+		return response.get("result").get("host").keys();
 	}
 
-	
 	private static Set<String> getServers(ModelControllerClient client, String host) throws IOException {
 		ModelNode op = new ModelNode();
-        op.get("operation").set("read-resource");
-        op.get("operations").set(true);
-        ModelNode address = op.get("address");
-        address.add("host", host);
-        
-        ModelNode response = client.execute(op);
+		op.get("operation").set("read-resource");
+		op.get("operations").set(true);
+		ModelNode address = op.get("address");
+		address.add("host", host);
 
-        return response.get("result").get("server").keys();
+		ModelNode response = client.execute(op);
+
+		return response.get("result").get("server").keys();
 	}
-		
-	private static Set<String> getDeployments(ModelControllerClient client, String host, String server) throws IOException {
+
+	private static Set<String> getDeployments(ModelControllerClient client, String host, String server)
+			throws IOException {
 		ModelNode op = new ModelNode();
-        op.get("operation").set("read-resource");
-        op.get("operations").set(true);
-        ModelNode address = op.get("address");
-        address.add("host", host);
-        address.add("server", server);
-        
-        ModelNode response = client.execute(op);
+		op.get("operation").set("read-resource");
+		op.get("operations").set(true);
+		ModelNode address = op.get("address");
+		address.add("host", host);
+		address.add("server", server);
 
-        return response.get("result").get("deployment").keys();
+		ModelNode response = client.execute(op);
+
+		return response.get("result").get("deployment").keys();
 	}
 
-	
-	private static ModelNode getAllStatistics(ModelControllerClient client, String host, String server, String deployment) throws IOException {
+	private static ModelNode getAllStatistics(ModelControllerClient client, String host, String server,
+			String deployment) throws IOException {
 		ModelNode op = new ModelNode();
 		op.get("operation").set("read-resource");
 		op.get("operations").set(true);
@@ -174,20 +174,25 @@ public class EJBMonitor {
 		address.add("host", host);
 		address.add("server", server);
 		address.add("deployment", deployment);
-    
+
 		return client.execute(op);
 	}
 
 	private static void printStatistics(ModelNode response, String host, String server, String deploy) {
-	    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
-	    String now = dateFormat.format(new Date());
-		
+		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
+		String now = dateFormat.format(new Date());
+
 		for (String subdeployment : response.get("result").get("subdeployment").keys()) {
 			if (response.get("result").get("subdeployment").get(subdeployment).get("subsystem").has("ejb3")) {
-				for (String stateful : response.get("result").get("subdeployment").get(subdeployment).get("subsystem").get("ejb3").get("stateful-session-bean").keys()) {
-					for (String method : response.get("result").get("subdeployment").get(subdeployment).get("subsystem").get("ejb3").get("stateful-session-bean").get(stateful).get("methods").keys()) {
-						ModelNode methodNode = response.get("result").get("subdeployment").get(subdeployment).get("subsystem").get("ejb3").get("stateful-session-bean").get(stateful).get("methods").get(method);
-						
+				for (String stateful : response.get("result").get("subdeployment").get(subdeployment).get("subsystem")
+						.get("ejb3").get("stateful-session-bean").keys()) {
+					for (String method : response.get("result").get("subdeployment").get(subdeployment)
+							.get("subsystem").get("ejb3").get("stateful-session-bean").get(stateful).get("methods")
+							.keys()) {
+						ModelNode methodNode = response.get("result").get("subdeployment").get(subdeployment)
+								.get("subsystem").get("ejb3").get("stateful-session-bean").get(stateful).get("methods")
+								.get(method);
+
 						System.out.print(now + ",");
 						System.out.print(host + ",");
 						System.out.print(server + ",");
